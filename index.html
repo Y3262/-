@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Yiddish24 Player</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    #container {
+      background: rgba(255, 255, 255, .98);
+      backdrop-filter: blur(20px);
+      border-radius: 30px;
+      padding: 40px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 25px 70px rgba(0, 0, 0, .35);
+    }
+    h1 { text-align: center; color: #2d3748; margin-bottom: 35px; font-size: 26px; font-weight: 700; }
+    #buttons { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 35px; }
+    .station-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      border: none;
+      border-radius: 16px;
+      padding: 22px 16px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(102, 126, 234, .4);
+      min-height: 85px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .station-btn.active { background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%); }
+    #buttons .station-btn:last-child { grid-column: 1 / -1; }
+    .player-section {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-radius: 25px;
+      padding: 35px 30px;
+    }
+    .album-art {
+      width: 130px;
+      height: 130px;
+      margin: 0 auto 25px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .album-art.playing { animation: pulse 2s infinite; }
+    @keyframes pulse { 50% { transform: scale(1.05); } }
+    .album-art svg { width: 65px; height: 65px; color: white; }
+    .now-playing { text-align: center; font-weight: 700; margin-bottom: 8px; }
+    .live-indicator { text-align: center; color: #e53e3e; font-size: 12px; display: none; }
+    .live-indicator.active { display: block; }
+    .playback-controls { display: flex; justify-content: center; gap: 20px; margin: 25px 0; }
+    .control-btn, .play-pause-btn {
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .control-btn { width: 55px; height: 55px; background: #fff; }
+    .play-pause-btn { width: 75px; height: 75px; background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%); color: #fff; }
+    .secondary-controls { display: flex; justify-content: space-between; gap: 15px; }
+    .speed-btn { padding: 10px 18px; border-radius: 12px; font-weight: 700; border: 0; }
+    .volume-control-inline { display: flex; align-items: center; gap: 12px; width: 100%; }
+    input[type=range] { width: 100%; }
+    #siteBtn {
+      width: 100%;
+      margin-top: 20px;
+      background: #1a202c;
+      color: white;
+      border: none;
+      border-radius: 16px;
+      padding: 16px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .hint { margin-top: 14px; text-align: center; font-size: 12px; color: #4a5568; }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <h1>🎵 Yiddish24 Live Player</h1>
+    <div id="buttons"></div>
+    <div class="player-section">
+      <audio id="player"></audio>
+      <div class="album-art" id="albumArt">
+        <svg viewBox="0 0 24 24"><path d="M12 3v10.5a4 4 0 1 0 2 3.5V7h4V3z" /></svg>
+      </div>
+      <div class="now-playing" id="nowPlaying">בחר תחנה להאזנה</div>
+      <div class="live-indicator" id="liveIndicator">PLAYING LIVE</div>
+      <div class="playback-controls">
+        <button id="prevBtn" class="control-btn" aria-label="התחנה הקודמת">⏮</button>
+        <button id="playPauseBtn" class="play-pause-btn" aria-label="נגן או עצור">
+          <span id="playIcon">▶</span><span id="pauseIcon" style="display:none">⏸</span>
+        </button>
+        <button id="nextBtn" class="control-btn" aria-label="התחנה הבאה">⏭</button>
+      </div>
+      <div class="secondary-controls">
+        <button id="speedBtn" class="speed-btn">1x</button>
+        <div class="volume-control-inline">
+          <button id="volumeBtn" aria-label="השתק/בטל השתקה">🔊</button>
+          <input type="range" id="vol" min="0" max="1" step="0.01" value="1" />
+        </div>
+      </div>
+      <p class="hint">זה שידור חי — פס ההתקדמות לא פעיל</p>
+    </div>
+    <button id="siteBtn">ללכת לאתר 🌐</button>
+  </div>
+
+  <script>
+    const stations = [
+      { n: "אלגעמיינע קאלעקשאן", u: "https://music.y24.app/1" },
+      { n: "אידישע ניגונים קאלעקשאן", u: "https://music.y24.app/7" },
+      { n: "קומזיץ קאלעקשאן", u: "https://music.y24.app/9" },
+      { n: "לעבעדיג קאלעקשאן", u: "https://music2.y24.app/37" },
+      { n: "שבת קאלעקשאן", u: "https://music.y24.app/2" }
+    ];
+
+    const player = document.getElementById("player");
+    const buttons = document.getElementById("buttons");
+    const playBtn = document.getElementById("playPauseBtn");
+    const playIcon = document.getElementById("playIcon");
+    const pauseIcon = document.getElementById("pauseIcon");
+    const live = document.getElementById("liveIndicator");
+    const art = document.getElementById("albumArt");
+    const vol = document.getElementById("vol");
+    const volumeBtn = document.getElementById("volumeBtn");
+    const speedBtn = document.getElementById("speedBtn");
+
+    let index = -1;
+    const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
+    let sIndex = 2;
+    let lastVol = 1;
+
+    stations.forEach((s, i) => {
+      const b = document.createElement("button");
+      b.className = "station-btn";
+      b.textContent = s.n;
+      b.onclick = () => playStation(i);
+      buttons.appendChild(b);
+    });
+
+    function playStation(i) {
+      index = i;
+      player.src = stations[i].u;
+      player.play();
+      syncUI(true);
+      document.querySelectorAll(".station-btn").forEach((b) => b.classList.remove("active"));
+      buttons.children[i].classList.add("active");
+      document.getElementById("nowPlaying").textContent = stations[i].n;
+    }
+
+    function syncUI(isPlaying) {
+      playIcon.style.display = isPlaying ? "none" : "block";
+      pauseIcon.style.display = isPlaying ? "block" : "none";
+      live.classList.toggle("active", isPlaying);
+      art.classList.toggle("playing", isPlaying);
+    }
+
+    playBtn.onclick = () => {
+      if (index === -1) return playStation(0);
+      if (player.paused) player.play();
+      else player.pause();
+    };
+
+    player.onplay = () => syncUI(true);
+    player.onpause = () => syncUI(false);
+
+    speedBtn.onclick = () => {
+      sIndex = (sIndex + 1) % speeds.length;
+      player.playbackRate = speeds[sIndex];
+      speedBtn.textContent = `${speeds[sIndex]}x`;
+    };
+
+    vol.oninput = () => {
+      player.volume = Number(vol.value);
+      volumeBtn.textContent = Number(vol.value) === 0 ? "🔇" : "🔊";
+    };
+
+    volumeBtn.onclick = () => {
+      if (player.volume > 0) {
+        lastVol = player.volume;
+        player.volume = 0;
+        vol.value = 0;
+      } else {
+        player.volume = lastVol;
+        vol.value = lastVol;
+      }
+      volumeBtn.textContent = player.volume === 0 ? "🔇" : "🔊";
+    };
+
+    document.getElementById("prevBtn").onclick = () => playStation((index - 1 + stations.length) % stations.length);
+    document.getElementById("nextBtn").onclick = () => playStation((index + 1) % stations.length);
+    document.getElementById("siteBtn").onclick = () => window.open("https://www.yiddish24.com/streams", "_blank");
+  </script>
+</body>
+</html>
